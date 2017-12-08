@@ -1,4 +1,4 @@
-﻿'Written by Jason Titcomb
+﻿'Written by Jason Titcomb 12/8/2017
 'This code is provided AS IS.
 Imports System.Runtime.InteropServices
 Imports SolidEdgeConstants, SolidEdgeFramework
@@ -13,10 +13,10 @@ Module Module1
 
     Sub Main()
         Try
-            mSolidApp = TryCast(Marshal.GetActiveObject("SolidEdge.Application"), SolidEdgeFramework.Application)
+            mSolidApp = Marshal.GetActiveObject("SolidEdge.Application")
             MessageFilter.Register()
-            mSolidApp.Interactive = True
-            Dim solidDoc As SolidEdgePart.PartDocument = Nothing
+
+            Dim solidDoc As Object = Nothing
             Select Case mSolidApp.ActiveDocumentType
                 Case igPartDocument, igSyncPartDocument, igSheetMetalDocument, igSyncSheetMetalDocument
                     solidDoc = mSolidApp.ActiveDocument
@@ -32,12 +32,11 @@ Module Module1
             mCommand.Start()
             mMouse = mCommand.Mouse
             With mMouse
-                .LocateMode = 1
+                .LocateMode = 2
                 .WindowTypes = 1
                 .EnabledMove = True
-                .AddToLocateFilter(SolidEdgeConstants.seLocateFilterConstants.seLocateFace)
+                .AddToLocateFilter(seLocateFilterConstants.seLocateFace)
                 AddHandler .MouseDown, AddressOf Mouse_MouseDown
-                AddHandler .MouseMove, AddressOf Mouse_MouseMove
             End With
             System.Windows.Forms.Application.Run()
         Catch ex As Exception
@@ -56,12 +55,9 @@ Module Module1
         If sButton = 2 Or pGraphicDispatch Is Nothing Then
             'Mouse down and nothing selected
             mSolidApp.StartCommand(SolidEdgeFramework.SolidEdgeCommandConstants.sePartSelectCommand)
+        Else
+            FindFaces(pGraphicDispatch)
         End If
-        FindFaces(pGraphicDispatch)
-    End Sub
-
-    Private Sub Mouse_MouseMove(ByVal sButton As Short, ByVal sShift As Short, ByVal dX As Double, ByVal dY As Double, ByVal dZ As Double, ByVal pWindowDispatch As Object, ByVal lKeyPointType As Integer, ByVal pGraphicDispatch As Object)
-        'ReportStyleName(pGraphicDispatch, False)
     End Sub
 
     Private Sub Command_Terminate()
@@ -80,7 +76,6 @@ Module Module1
     Private Sub FindFaces(theFace As SolidEdgeGeometry.Face)
         Dim faces As Object
         Try
-            mSolidApp.DelayCompute = True
             ReportStatus("Searching...")
             If theFace IsNot Nothing Then
                 Dim facetype As SolidEdgeGeometry.GNTTypePropertyConstants = Nothing
@@ -109,23 +104,25 @@ Module Module1
                     Else
                         mHighlightSet.RemoveAll()
                     End If
-                    Dim selArea = Math.Round(theFace.Area, 5)
+
+                    Dim selArea = Math.Round(theFace.Area, 7)
+
                     For r As Integer = 1 To faces.count
                         Dim face As SolidEdgeGeometry.Face = faces.Item(r)
-                        If Math.Round(face.Area, 5) = selArea Then
+                        If Math.Round(face.Area, 7) = selArea Then
                             mHighlightSet.AddItem(face)
                         End If
                         ReleaseRCW(face)
                     Next
-                    ReportStatus(mHighlightSet.Count & " of " & faces.count)
+                    ReportStatus(mHighlightSet.Count & " of " & faces.count & "  " & facetype.ToString)
                     mHighlightSet.Draw()
                     ReleaseRCW(bdy)
                 End If
             Else
-                mSolidApp.StatusBar = "Position mouse over face"
+                ReportStatus("Position mouse over face")
             End If
         Finally
-            mSolidApp.DelayCompute = False
+
         End Try
 
 
