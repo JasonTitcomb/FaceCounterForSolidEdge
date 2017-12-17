@@ -21,7 +21,7 @@ Module Module1
                 Case igPartDocument, igSyncPartDocument, igSheetMetalDocument, igSyncSheetMetalDocument
                     solidDoc = mSolidApp.ActiveDocument
                 Case Else
-                    ReportStatus("Part or Sheetmetal only!")
+                    mSolidApp.StatusBar = "Part or Sheetmetal only!"
                     Exit Sub
             End Select
 
@@ -38,17 +38,14 @@ Module Module1
                 .AddToLocateFilter(seLocateFilterConstants.seLocateFace)
                 AddHandler .MouseDown, AddressOf Mouse_MouseDown
             End With
+            mSolidApp.StatusBar = "Select a face."
             System.Windows.Forms.Application.Run()
         Catch ex As Exception
-            ReportStatus(ex.Message)
+            mSolidApp.StatusBar = ex.Message
         Finally
             MessageFilter.Revoke()
         End Try
 
-    End Sub
-
-    Private Sub ReportStatus(msg As String)
-        mSolidApp.StatusBar = msg
     End Sub
 
     Private Sub Mouse_MouseDown(ByVal sButton As Short, ByVal sShift As Short, ByVal dX As Double, ByVal dY As Double, ByVal dZ As Double, ByVal pWindowDispatch As Object, ByVal lKeyPointType As Integer, ByVal pGraphicDispatch As Object)
@@ -63,79 +60,61 @@ Module Module1
     Private Sub Command_Terminate()
         If mHighlightSet IsNot Nothing Then
             mHighlightSet.RemoveAll()
-            ReleaseRCW(mHighlightSet)
-            ReleaseRCW(mHighlightSets)
         End If
-
-        ReleaseRCW(mMouse)
-        ReleaseRCW(mCommand)
-        ReleaseRCW(mSolidApp)
         System.Windows.Forms.Application.Exit()
     End Sub
 
     Private Sub FindFaces(theFace As SolidEdgeGeometry.Face)
         Dim faces As Object
         Try
-            ReportStatus("Searching...")
+            mSolidApp.StatusBar = "Searching..."
             If theFace IsNot Nothing Then
                 Dim facetype As SolidEdgeGeometry.GNTTypePropertyConstants = Nothing
                 facetype = theFace.Geometry.Type
-                Dim bdy As SolidEdgeGeometry.Body = Nothing
-                If TryGetProp(theFace, "Body", bdy) Then
-                    Select Case facetype
-                        Case SolidEdgeGeometry.GNTTypePropertyConstants.igCone
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryCone)
-                        Case SolidEdgeGeometry.GNTTypePropertyConstants.igCylinder
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryCylinder)
-                        Case SolidEdgeGeometry.GNTTypePropertyConstants.igPlane
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryPlane)
-                        Case SolidEdgeGeometry.GNTTypePropertyConstants.igBSplineSurface
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQuerySpline)
-                        Case SolidEdgeGeometry.GNTTypePropertyConstants.igTorus
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryTorus)
-                        Case SolidEdgeGeometry.GNTTypePropertyConstants.igSphere
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQuerySphere)
-                        Case Else
-                            faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryAll)
-                    End Select
+                Dim bdy As SolidEdgeGeometry.Body = theFace.Body
+                Select Case facetype
+                    Case SolidEdgeGeometry.GNTTypePropertyConstants.igCone
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryCone)
+                    Case SolidEdgeGeometry.GNTTypePropertyConstants.igCylinder
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryCylinder)
+                    Case SolidEdgeGeometry.GNTTypePropertyConstants.igPlane
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryPlane)
+                    Case SolidEdgeGeometry.GNTTypePropertyConstants.igBSplineSurface
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQuerySpline)
+                    Case SolidEdgeGeometry.GNTTypePropertyConstants.igTorus
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryTorus)
+                    Case SolidEdgeGeometry.GNTTypePropertyConstants.igSphere
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQuerySphere)
+                    Case Else
+                        faces = bdy.Faces(SolidEdgeGeometry.FeatureTopologyQueryTypeConstants.igQueryAll)
+                End Select
 
-                    If mHighlightSet Is Nothing Then
-                        mHighlightSet = mHighlightSets.Add
-                    Else
-                        mHighlightSet.RemoveAll()
-                    End If
-
-                    Dim selArea = Math.Round(theFace.Area, 7)
-
-                    For r As Integer = 1 To faces.count
-                        Dim face As SolidEdgeGeometry.Face = faces.Item(r)
-                        If Math.Round(face.Area, 7) = selArea Then
-                            mHighlightSet.AddItem(face)
-                        End If
-                        ReleaseRCW(face)
-                    Next
-                    ReportStatus(mHighlightSet.Count & " of " & faces.count & "  " & facetype.ToString)
-                    mHighlightSet.Draw()
-                    ReleaseRCW(bdy)
+                If mHighlightSet Is Nothing Then
+                    mHighlightSet = mHighlightSets.Add
+                Else
+                    mHighlightSet.RemoveAll()
                 End If
-            Else
-                ReportStatus("Position mouse over face")
+
+                Dim selArea = Math.Round(theFace.Area, 7)
+                For r As Integer = 1 To faces.count
+                    Dim face As SolidEdgeGeometry.Face = faces.Item(r)
+                    If Math.Round(face.Area, 7) = selArea Then
+                        mHighlightSet.AddItem(face)
+                    End If
+                Next
+                mSolidApp.StatusBar = mHighlightSet.Count & " of " & faces.count & "  " & facetype.ToString
+                mHighlightSet.Draw()
             End If
         Finally
-
+            ReleaseRCW(theFace)
         End Try
 
-
     End Sub
-
-    Private Function TryGetProp(o As Object, name As String, ByRef retProp As Object) As Boolean
-        retProp = o.GetType.InvokeMember(name, Reflection.BindingFlags.GetProperty, Nothing, o, Nothing)
-        Return retProp IsNot Nothing
-    End Function
 
     Private Sub ReleaseRCW(ByRef o As Object)
         If o IsNot Nothing Then
             Dim ret As Integer = Marshal.ReleaseComObject(o)
+            Debug.Print(ret)
             'Debug.Assert(0 = ret)
             o = Nothing
         End If
